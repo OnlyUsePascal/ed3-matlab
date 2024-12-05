@@ -2,16 +2,16 @@
 clc;
 clear;
 
-% ========================== Forward Kinematics ==========================
+% ========================== Inverse Kinematics ==========================
 % Robot parameters
 l = 0.5; % Distance between wheel pairs (m)
 d = 0.5; % Distance between wheels along the axis (m)
 
-% Forward kinematics matrix (pseudo-inverse of the kinematic model)
-J_inv = (1 / 4) * [1, -1, -(l + d);
-                   1,  1, -(l + d);
-                   1, -1,  (l + d);
-                   1,  1,  (l + d)];
+% Inverse kinematics matrix 
+J_inv = [1, -1, -(l + d);
+         1,  1, -(l + d);
+         1, -1,  (l + d);
+         1,  1,  (l + d)];
 
 % ========================== Simulation Setup ============================
 % Time parameters
@@ -29,13 +29,17 @@ phi = 0; % Orientation (rad)
 x_history = [];
 y_history = [];
 phi_history = [];
+
 v1_history = [];
 v2_history = [];
 v3_history = [];
 v4_history = [];
+vx_history = [];
+vy_history = [];
+vphi_history = [];
 
 % ========================= Video Writer Setup ===========================
-video = VideoWriter('Square_Trajectory_with_Velocity_Graphs_Aligned.avi'); % Create video file
+video = VideoWriter('Square With Turn.avi'); % Create video file
 video.FrameRate = 20; % Set frame rate
 open(video); % Open video for writing
 
@@ -60,13 +64,13 @@ for t = 1:(4 * steps_per_side + 4 * steps_per_turn + 10) % Added 10 steps for th
     end
 
    % Compute wheel angular velocities
-wheel_angular_velocities = J_inv * [x_vel; y_vel; phi_vel];
+    wheel_angular_velocities = J_inv * [x_vel; y_vel; phi_vel];
 
-% Save wheel angular velocities for plotting
-v1_history = [v1_history, wheel_angular_velocities(1)];
-v2_history = [v2_history, wheel_angular_velocities(2)];
-v3_history = [v3_history, wheel_angular_velocities(3)];
-v4_history = [v4_history, wheel_angular_velocities(4)];
+    % Save wheel angular velocities for plotting
+    v1_history = [v1_history, wheel_angular_velocities(1)];
+    v2_history = [v2_history, wheel_angular_velocities(2)];
+    v3_history = [v3_history, wheel_angular_velocities(3)];
+    v4_history = [v4_history, wheel_angular_velocities(4)];
 
     % Update robot pose
     x_pos = x_pos + (x_vel * cos(phi) - y_vel * sin(phi)) * dt;
@@ -136,30 +140,28 @@ v4_history = [v4_history, wheel_angular_velocities(4)];
     yc = temp;
 
   % Define exact wheel positions relative to car body
-wheel_positions = [
-    -car_length/2, -car_width/2-0.023, 0;  % Bottom-left corner of the robot
-     car_length/2, -car_width/2-0.023, 0;  % Bottom-right corner of the robot
-     car_length/2,  car_width/2, 0;  % Top-right corner of the robot
-    -car_length/2,  car_width/2, 0]; % Top-left corner of the robot
+    wheel_positions = [
+        -car_length/2, -car_width/2-0.023, 0;  % Bottom-left corner of the robot
+        car_length/2, -car_width/2-0.023, 0;  % Bottom-right corner of the robot
+        car_length/2,  car_width/2, 0;  % Top-right corner of the robot
+        -car_length/2,  car_width/2, 0]; % Top-left corner of the robot
 
+    % Draw each wheel
+    for i = 1:4
+        % Transform wheel position based on robot's current pose
+        wheel_center = (R * wheel_positions(i, :)')' + [x_pos, y_pos, 0];
+        wheel_geometry = R * [xc(:), yc(:), zc(:)]'; % Rotate wheel geometry
+        wheel_x = reshape(wheel_geometry(1, :), size(xc)) + wheel_center(1);
+        wheel_y = reshape(wheel_geometry(2, :), size(yc)) + wheel_center(2);
+        wheel_z = reshape(wheel_geometry(3, :), size(zc)) + wheel_center(3);
 
+        % Draw cylindrical side of the wheel
+        surf(wheel_x, wheel_y, wheel_z, 'FaceColor', [1, 0.5, 0], 'EdgeColor', 'none');
 
-% Draw each wheel
-for i = 1:4
-    % Transform wheel position based on robot's current pose
-    wheel_center = (R * wheel_positions(i, :)')' + [x_pos, y_pos, 0];
-    wheel_geometry = R * [xc(:), yc(:), zc(:)]'; % Rotate wheel geometry
-    wheel_x = reshape(wheel_geometry(1, :), size(xc)) + wheel_center(1);
-    wheel_y = reshape(wheel_geometry(2, :), size(yc)) + wheel_center(2);
-    wheel_z = reshape(wheel_geometry(3, :), size(zc)) + wheel_center(3);
-
-    % Draw cylindrical side of the wheel
-    surf(wheel_x, wheel_y, wheel_z, 'FaceColor', [1, 0.5, 0], 'EdgeColor', 'none');
-
-    % Draw circular ends
-    fill3(wheel_x(1, :), wheel_y(1, :), wheel_z(1, :), [1, 0.5, 0]);
-    fill3(wheel_x(2, :), wheel_y(2, :), wheel_z(2, :), [1, 0.5, 0]);
-end
+        % Draw circular ends
+        fill3(wheel_x(1, :), wheel_y(1, :), wheel_z(1, :), [1, 0.5, 0]);
+        fill3(wheel_x(2, :), wheel_y(2, :), wheel_z(2, :), [1, 0.5, 0]);
+    end
 
     % Formatting
     xlabel('X Position (m)');
@@ -183,45 +185,30 @@ close(video); % Close and save video file
 % ========================= Velocity Graphs ============================
 time_array = (0:(length(v1_history)-1)) * dt; % Create a time array in seconds
 
-% Individual wheel angular velocities
-figure;
-plot(time_array, v1_history, 'r-', 'LineWidth', 1.5);
-grid on;
-xlabel('Time (s)');
-ylabel('Angular Velocity (rad/s)');
-title('Wheel 1 Angular Velocity');
+function plot_velocity(time_array, velocity_data, color, y_label_text, title_text)
+    figure;
+    plot(time_array, velocity_data, color, 'LineWidth', 1.5);
+    xlabel('Time (s)');
+    ylabel(y_label_text);
+    title(title_text);
+    grid on;
+end
 
-figure;
-plot(time_array, v2_history, 'g-', 'LineWidth', 1.5);
-grid on;
-xlabel('Time (s)');
-ylabel('Angular Velocity (rad/s)');
-title('Wheel 2 Angular Velocity');
+plot_velocity(time_array, v1_history, 'r-', 'Angular Velocity (rad/s)', 'Wheel 1 Angular Velocity');
+plot_velocity(time_array, v2_history, 'g-', 'Angular Velocity (rad/s)', 'Wheel 2 Angular Velocity');
+plot_velocity(time_array, v3_history, 'b-', 'Angular Velocity (rad/s)', 'Wheel 3 Angular Velocity');
+plot_velocity(time_array, v4_history, 'k-', 'Angular Velocity (rad/s)', 'Wheel 4 Angular Velocity');
 
-figure;
-plot(time_array, v3_history, 'b-', 'LineWidth', 1.5);
-grid on;
-xlabel('Time (s)');
-ylabel('Angular Velocity (rad/s)');
-title('Wheel 3 Angular Velocity');
-
-figure;
-plot(time_array, v4_history, 'k-', 'LineWidth', 1.5);
-grid on;
-xlabel('Time (s)');
-ylabel('Angular Velocity (rad/s)');
-title('Wheel 4 Angular Velocity');
-
-% Combined wheel angular velocities
-figure;
-hold on;
-plot(time_array, v1_history, 'r-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 1');
-plot(time_array, v2_history, 'g-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 2');
-plot(time_array, v3_history, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 3');
-plot(time_array, v4_history, 'k-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 4');
-hold off;
-grid on;
-xlabel('Time (s)');
-ylabel('Angular Velocity (rad/s)');
-title('Combined Wheel Angular Velocities');
-legend('show');
+% % Combined wheel angular velocities
+% figure;
+% hold on;
+% plot(time_array, v1_history, 'r-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 1');
+% plot(time_array, v2_history, 'g-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 2');
+% plot(time_array, v3_history, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 3');
+% plot(time_array, v4_history, 'k-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 4');
+% hold off;
+% grid on;
+% xlabel('Time (s)');
+% ylabel('Angular Velocity (rad/s)');
+% title('Combined Wheel Angular Velocities');
+% legend('show');
