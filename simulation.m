@@ -92,7 +92,7 @@ wheel_positions = [
     -car_length/2,  car_width/2, 0]; % Top-left corner of the robot
 
 % ========================= Video Writer Setup ===========================
-video = VideoWriter('Square With Turn.avi'); % Create video file
+video = VideoWriter('Simulation.avi'); % Create video file
 video.FrameRate = 20; % Set frame rate
 open(video); % Open video for writing
 
@@ -243,10 +243,10 @@ timePerOp = 10;
 stepPerOp = 10;
 
 % square no turn
-function square_no_turn(distance) 
+function square_with_turn(distance) 
     global timePerOp stepPerOp;
 
-    for i = 1:2
+    for i = 1:4
         % Move straight
         move(distance, 0, 0, timePerOp, stepPerOp);
 
@@ -255,61 +255,58 @@ function square_no_turn(distance)
     end
 end
 
-square_no_turn(5) 
-% move(5, 0, 0, 10);
-% move(0,0,0,10)
-% move(5, 90, 0, 10);
-% move(0,0,0,10)
-% move(5, 180, 0, 10);
-% move(0,0,0,10)
-% move(5, 270, 0, 10);
+function square_no_turn(distance)
+    global timePerOp stepPerOp;
 
-% square with turn
-% move(5, 0, 0, 10);
-% move(0,0,0,10)
-% move(0, 0, 90, 10);
-% move(0,0,0,10)
+    for i = 1:4
+        % Move straight at angle i-1 * 90
+        move(distance, 90 * (i-1), 0, timePerOp, stepPerOp);
+    end
+end
 
-% move(5, 0, 0, 10);
-% move(0,0,0,10)
-% move(0, 0, 90, 10);
-% move(0,0,0,10)
+function circle_with_turn(radius, stepPerOp)
+    global timePerOp;
 
-% move(5, 0, 0, 10);
-% move(0,0,0,10)
-% move(0, 0, 90, 10);
-% move(0,0,0,10)
+    % idea: move straight + rotate 
+    % the bigger stepPerOp, the smoother the circle
+    move(2 * pi * radius, 0, 360, timePerOp, stepPerOp); 
+end
 
-% move(5, 0, 0, 10);
-% move(0, 0, 90, 10);
-% move(0, 0, 0, 10);
-% move(0,0,0,10)
+function circle_no_turn(radius, unitDeg)
+    global timePerOp;
+    
+    % idea: an arc is a chain of straight lines
+    % so we should conduct a series of small straight moves with different direction
+    deg = 360;
+    arcSmallest = radius * degtorad(unitDeg)
 
-% circle with turn
-% move(2 * pi * 5, 0, 360, 10); % 5m circle 360 degree turn
+    % as the loop is big, each operation taking 1 step is fine
+    for i = 1:unitDeg:deg
+        % fprintf('> i: %d\n', i);
+        move(arcSmallest, i , 0, timePerOp, 1);
+    end
+end
 
-% circle no turn
-% deg = 360;
-% radSmallest = degtorad(1)
-% arcSmallest = 5 * radSmallest
+function circle_center_turn(radius, stepPerOp)
+    global timePerOp;
 
-% for i = 1:deg:10
-%     fprintf('> i: %d\n', i);
-%     move(arcSmallest, i , 0, 10, 1);
-% end
+    % step 1: rotate left / right
+    move(0, 0, -90, timePerOp, 10)
 
-% drift mode
-% move(0, 0, -90, 10, 10)
-% move(0, 0, 0, 10, 10)
-% move(5 * 2 * pi , 90, 360, 10, 20); % 5m circle 180 degree turn
-% move(2 * pi * 5, 90, 180, 10, 10); % 5m circle 180 degree turn
+    % step 2: move horizontally + rotate bit by bit
+    move(radius * 2 * pi , 90, 360, 10, stepPerOp); % 5m circle 180 degree turn
+end
+
+% square_with_turn(5);
+% square_no_turn(5) 
+circle_with_turn(5, 30);
+% circle_no_turn(5, 2)
+% circle_center_turn(5, 40);
 
 % ========================= Finalize Video ============================
 close(video); % Close and save video file
 
 % ========================= Velocity Graphs ============================
-% time_history = (0:(length(v1_history)-1)) * dt; % Create a time array in seconds
-
 function plot_velocity(velocity_data, color, y_label_text, title_text)
     global time_history;
     
