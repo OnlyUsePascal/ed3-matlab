@@ -142,7 +142,7 @@ function draw_wheels(R, x_pos, y_pos)
     end
 end
 
-function move(distance, degree, totalTime)
+function move(distance, moveAngle, rotateAngle, totalTime, step)
     global time_array phi x_pos y_pos J_inv v1_history v2_history v3_history v4_history x_history y_history phi_history; % Declare global variables for time, position, orientation, and velocity history
     global vCarX_history vCarY_history vCarPhi_history; % Declare global variables for car velocities
     global video; % Declare global variable for video writer
@@ -150,16 +150,18 @@ function move(distance, degree, totalTime)
     global phi1_history phi2_history phi3_history phi4_history; % Declare global variables for wheel orientation history
 
     % constant for now 
-    step = 20;
+    % step = 20;
     dt = totalTime / step;
     dts = (0:(step)) * dt;
     time_array = dts;
     
     % prepare vCarX, vCary, vCarPhi
-    rad = deg2rad(degree); % s
-    vCarX = distance * cos(rad) / totalTime;
-    vCarY = distance * sin(rad) / totalTime;
-    vCarPhi = rad / totalTime;
+    moveAngle = deg2rad(moveAngle);
+    vCarX = distance * cos(moveAngle) / totalTime;
+    vCarY = distance * sin(moveAngle) / totalTime;
+
+    rotateAngle = deg2rad(rotateAngle); % s
+    vCarPhi = rotateAngle / totalTime;
     
     fprintf('vx: %d, vy: %d, vphi: %d\n', vCarX, vCarY, vCarPhi);
     % start at step 1, end at last step
@@ -234,7 +236,54 @@ function move(distance, degree, totalTime)
     end     
 end
 
-move(10, 360, 10);
+% square no turn
+% move(5, 0, 0, 10);
+% move(0,0,0,10)
+% move(5, 90, 0, 10);
+% move(0,0,0,10)
+% move(5, 180, 0, 10);
+% move(0,0,0,10)
+% move(5, 270, 0, 10);
+
+% square with turn
+% move(5, 0, 0, 10);
+% move(0,0,0,10)
+% move(0, 0, 90, 10);
+% move(0,0,0,10)
+
+% move(5, 0, 0, 10);
+% move(0,0,0,10)
+% move(0, 0, 90, 10);
+% move(0,0,0,10)
+
+% move(5, 0, 0, 10);
+% move(0,0,0,10)
+% move(0, 0, 90, 10);
+% move(0,0,0,10)
+
+% move(5, 0, 0, 10);
+% move(0, 0, 90, 10);
+% move(0, 0, 0, 10);
+% move(0,0,0,10)
+
+% circle with turn
+% move(2 * pi * 5, 0, 360, 10); % 5m circle 360 degree turn
+
+% circle no turn
+deg = 360;
+radSmallest = degtorad(1)
+arcSmallest = 5 * radSmallest
+
+% for i = 1:deg:10
+%     fprintf('> i: %d\n', i);
+%     move(arcSmallest, i , 0, 10, 1);
+% end
+
+% drift mode
+move(0, 0, -90, 10, 10)
+move(0, 0, 0, 10, 10)
+move(5 * 2 * pi , 90, 360, 10, 20); % 5m circle 180 degree turn
+% move(2 * pi * 5, 90, 180, 10, 10); % 5m circle 180 degree turn
 
 % ========================= Finalize Video ============================
 close(video); % Close and save video file
@@ -287,6 +336,7 @@ plot_velocities(time_array, {v1_history; v2_history; v3_history; v4_history}, ["
 % plot_velocity(time_array, phi2_history, 'g-', 'Angular Position (rad)', 'Wheel 2 Angular Position');
 % plot_velocity(time_array, phi3_history, 'b-', 'Angular Position (rad)', 'Wheel 3 Angular Position');
 % plot_velocity(time_array, phi4_history, 'k-', 'Angular Position (rad)', 'Wheel 4 Angular Position');
+plot_velocities(time_array, {phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (rad)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
 % % Combined wheel angular velocities
 % figure;
