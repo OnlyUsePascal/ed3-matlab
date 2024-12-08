@@ -2,12 +2,13 @@
 clc;
 clear;
 
-global wheel_positions xc yc zc corners time_array J_inv v1_history v2_history v3_history v4_history phi x_pos y_pos; % Declare global variables for wheel positions and wheel geometry
+global wheel_positions xc yc zc corners time_history J_inv v1_history v2_history v3_history v4_history phi x_pos y_pos; % Declare global variables for wheel positions and wheel geometry
 global vCarX_history vCarY_history vCarPhi_history; % Declare global variables for car velocities
 global video; % Declare global variable for video writer
 global x_history y_history phi_history; % Declare global variables for position and orientation history
 global phi1_history phi2_history phi3_history phi4_history; % Declare global variables for wheel orientation history
 global phi1_pos phi2_pos phi3_pos phi4_pos; % Declare global variables for wheel orientation
+global timePerOp stepPerOp;
 
 
 % ========================== Inverse Kinematics ==========================
@@ -23,11 +24,11 @@ J_inv = [1, -1, -(l + d);
 
 % ========================== Simulation Setup ============================
 % Time parameters
-dt = 0.1; % Time step (s)
-distance_per_side = 4; % Distance per side (m)
-speed = 5.0; % Linear speed (m/s)
-steps_per_side = distance_per_side / (speed * dt); % Time steps to move straight
-steps_per_turn = 10; % Time steps to turn 90°
+% dt = 0.1; % Time step (s)
+% distance_per_side = 4; % Distance per side (m)
+% speed = 5.0; % Linear speed (m/s)
+% steps_per_side = distance_per_side / (speed * dt); % Time steps to move straight
+% steps_per_turn = 10; % Time steps to turn 90°
 
 % Initialize position, orientation, and velocity history
 x_pos = 0; % X position (m)
@@ -39,6 +40,7 @@ phi3_pos = 0; % Wheel 3 orientation (rad)
 phi4_pos = 0; % Wheel 4 orientation (rad)
 
 % Initialize history arrays
+time_history = [0];
 x_history = [0];
 y_history = [0];
 phi_history = [0];
@@ -143,7 +145,7 @@ function draw_wheels(R, x_pos, y_pos)
 end
 
 function move(distance, moveAngle, rotateAngle, totalTime, step)
-    global time_array phi x_pos y_pos J_inv v1_history v2_history v3_history v4_history x_history y_history phi_history; % Declare global variables for time, position, orientation, and velocity history
+    global time_history phi x_pos y_pos J_inv v1_history v2_history v3_history v4_history x_history y_history phi_history; % Declare global variables for time, position, orientation, and velocity history
     global vCarX_history vCarY_history vCarPhi_history; % Declare global variables for car velocities
     global video; % Declare global variable for video writer
     global phi1_pos phi2_pos phi3_pos phi4_pos; % Declare global variables for wheel orientation
@@ -152,8 +154,9 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
     % constant for now 
     % step = 20;
     dt = totalTime / step;
-    dts = (0:(step)) * dt;
-    time_array = dts;
+    time_array = (0:(step)) * dt;
+    time_history = [time_history, time_array(2:end) + time_history(end)]; % Append time array to history
+    % time_array = dts;
     
     % prepare vCarX, vCary, vCarPhi
     moveAngle = deg2rad(moveAngle);
@@ -165,7 +168,7 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
     
     fprintf('vx: %d, vy: %d, vphi: %d\n', vCarX, vCarY, vCarPhi);
     % start at step 1, end at last step
-    for i = 2:length(dts)
+    for i = 2:length(time_array)
         % Update robot pose
         dPhi = vCarPhi * dt;
         phi = phi + dPhi;
@@ -236,7 +239,23 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
     end     
 end
 
+timePerOp = 10;
+stepPerOp = 10;
+
 % square no turn
+function square_no_turn(distance) 
+    global timePerOp stepPerOp;
+
+    for i = 1:2
+        % Move straight
+        move(distance, 0, 0, timePerOp, stepPerOp);
+
+        % Turn 90°
+        move(0, 0, 90, timePerOp, stepPerOp);
+    end
+end
+
+square_no_turn(5) 
 % move(5, 0, 0, 10);
 % move(0,0,0,10)
 % move(5, 90, 0, 10);
@@ -270,9 +289,9 @@ end
 % move(2 * pi * 5, 0, 360, 10); % 5m circle 360 degree turn
 
 % circle no turn
-deg = 360;
-radSmallest = degtorad(1)
-arcSmallest = 5 * radSmallest
+% deg = 360;
+% radSmallest = degtorad(1)
+% arcSmallest = 5 * radSmallest
 
 % for i = 1:deg:10
 %     fprintf('> i: %d\n', i);
@@ -280,27 +299,31 @@ arcSmallest = 5 * radSmallest
 % end
 
 % drift mode
-move(0, 0, -90, 10, 10)
-move(0, 0, 0, 10, 10)
-move(5 * 2 * pi , 90, 360, 10, 20); % 5m circle 180 degree turn
+% move(0, 0, -90, 10, 10)
+% move(0, 0, 0, 10, 10)
+% move(5 * 2 * pi , 90, 360, 10, 20); % 5m circle 180 degree turn
 % move(2 * pi * 5, 90, 180, 10, 10); % 5m circle 180 degree turn
 
 % ========================= Finalize Video ============================
 close(video); % Close and save video file
 
 % ========================= Velocity Graphs ============================
-time_array = (0:(length(v1_history)-1)) * dt; % Create a time array in seconds
+% time_history = (0:(length(v1_history)-1)) * dt; % Create a time array in seconds
 
-function plot_velocity(time_array, velocity_data, color, y_label_text, title_text)
+function plot_velocity(velocity_data, color, y_label_text, title_text)
+    global time_history;
+    
     figure;
-    plot(time_array, velocity_data, color, 'LineWidth', 1.5);
+    plot(time_history, velocity_data, color, 'LineWidth', 1.5);
     xlabel('Time (s)');
     ylabel(y_label_text);
     title(title_text);
     grid on;
 end
 
-function plot_velocities(time_array, velocities, colors, yLabel, titleLabel, legends)
+function plot_velocities(velocities, colors, yLabel, titleLabel, legends)
+    global time_history;
+
     figure;
     hold on;
     for i = 1:length(velocities)
@@ -308,7 +331,7 @@ function plot_velocities(time_array, velocities, colors, yLabel, titleLabel, leg
         % disp(velocities{i});
         % disp(colors(i));
         % disp(legends(i));
-        plot(time_array, velocities{i}, colors(i), 'LineWidth', 1.5, 'DisplayName', legends(i));
+        plot(time_history, velocities{i}, colors(i), 'LineWidth', 1.5, 'DisplayName', legends(i));
     end
     hold off;
     grid on;
@@ -322,32 +345,12 @@ end
 % plot_velocity(time_array, v2_history, 'g-', 'Angular Velocity (rad/s)', 'Wheel 2 Angular Velocity');
 % plot_velocity(time_array, v3_history, 'b-', 'Angular Velocity (rad/s)', 'Wheel 3 Angular Velocity');
 % plot_velocity(time_array, v4_history, 'k-', 'Angular Velocity (rad/s)', 'Wheel 4 Angular Velocity');
-plot_velocities(time_array, {v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
-
-% convert wheel angular position to degree
-% phi1_history = rad2deg(phi1_history);
-% phi2_history = rad2deg(phi2_history);
-% phi3_history = rad2deg(phi3_history);
-% phi4_history = rad2deg(phi4_history);
+plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
 % TODO: divide y-axis by pi
-
 % plot_velocity(time_array, phi1_history, 'r-', 'Angular Position (rad)', 'Wheel 1 Angular Position');
 % plot_velocity(time_array, phi2_history, 'g-', 'Angular Position (rad)', 'Wheel 2 Angular Position');
 % plot_velocity(time_array, phi3_history, 'b-', 'Angular Position (rad)', 'Wheel 3 Angular Position');
 % plot_velocity(time_array, phi4_history, 'k-', 'Angular Position (rad)', 'Wheel 4 Angular Position');
-plot_velocities(time_array, {phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (rad)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (rad)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
-% % Combined wheel angular velocities
-% figure;
-% hold on;
-% plot(time_array, v1_history, 'r-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 1');
-% plot(time_array, v2_history, 'g-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 2');
-% plot(time_array, v3_history, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 3');
-% plot(time_array, v4_history, 'k-', 'LineWidth', 1.5, 'DisplayName', 'Wheel 4');
-% hold off;
-% grid on;
-% xlabel('Time (s)');
-% ylabel('Angular Velocity (rad/s)');
-% title('Combined Wheel Angular Velocities');
-% legend('show');
