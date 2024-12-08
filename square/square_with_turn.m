@@ -1,7 +1,14 @@
 % Mecanum Wheel Square Trajectory Simulation with Proper Wheel Alignment and Velocity Graphs
 clc;
 clear;
-global wheel_positions xc yc zc corners; % Declare global variables for wheel positions and wheel geometry
+
+global wheel_positions xc yc zc corners time_array J_inv v1_history v2_history v3_history v4_history phi x_pos y_pos; % Declare global variables for wheel positions and wheel geometry
+global vCarX_history vCarY_history vCarPhi_history; % Declare global variables for car velocities
+global video; % Declare global variable for video writer
+global x_history y_history phi_history; % Declare global variables for position and orientation history
+global phi1_history phi2_history phi3_history phi4_history; % Declare global variables for wheel orientation history
+global phi1_pos phi2_pos phi3_pos phi4_pos; % Declare global variables for wheel orientation
+
 
 % ========================== Inverse Kinematics ==========================
 % Robot parameters
@@ -26,19 +33,28 @@ steps_per_turn = 10; % Time steps to turn 90°
 x_pos = 0; % X position (m)
 y_pos = 0; % Y position (m)
 phi = 0; % Orientation (rad)
+phi1_pos = 0; % Wheel 1 orientation (rad)
+phi2_pos = 0; % Wheel 2 orientation (rad)
+phi3_pos = 0; % Wheel 3 orientation (rad)
+phi4_pos = 0; % Wheel 4 orientation (rad)
 
 % Initialize history arrays
-x_history = [];
-y_history = [];
-phi_history = [];
+x_history = [0];
+y_history = [0];
+phi_history = [0];
 
-v1_history = [];
-v2_history = [];
-v3_history = [];
-v4_history = [];
-vx_history = [];
-vy_history = [];
-vphi_history = [];
+v1_history = [0];
+v2_history = [0];
+v3_history = [0];
+v4_history = [0];
+vCarX_history = [0];
+vCarY_history = [0];
+vCarPhi_history = [0];
+
+phi1_history = [0];
+phi2_history = [0];
+phi3_history = [0];
+phi4_history = [0];
 
 % ========================== Drawing Setup ============================
 % Draw car model (fully enclosed 3D box)
@@ -124,77 +140,101 @@ function draw_wheels(R, x_pos, y_pos)
         fill3(wheel_x(1, :), wheel_y(1, :), wheel_z(1, :), [1, 0.5, 0]);
         fill3(wheel_x(2, :), wheel_y(2, :), wheel_z(2, :), [1, 0.5, 0]);
     end
-    
 end
 
-for t = 1:(4 * steps_per_side + 4 * steps_per_turn + 10) % Added 10 steps for the 1-second wait
-    % During the first 1 second, set all velocities to zero
-    if t <= 10 % Assuming dt = 0.1, 10 steps correspond to 1 second
-        vx = 0;
-        vy = 0;
-        vphi = 0;
-    elseif mod(t - 10, steps_per_side + steps_per_turn) <= steps_per_side && mod(t - 10, steps_per_side + steps_per_turn) > 0 % Straight motion
-        vx = speed; % Move forward at constant speed
-        vy = 0;
-        vphi = 0;
-    else % Turning motion
-        vx = 0;
-        vy = 0;
-        vphi = pi / 2 / (steps_per_turn * dt); % Angular velocity for 90° turn
-    end
+function move(distance, degree, totalTime)
+    global time_array phi x_pos y_pos J_inv v1_history v2_history v3_history v4_history x_history y_history phi_history; % Declare global variables for time, position, orientation, and velocity history
+    global vCarX_history vCarY_history vCarPhi_history; % Declare global variables for car velocities
+    global video; % Declare global variable for video writer
+    global phi1_pos phi2_pos phi3_pos phi4_pos; % Declare global variables for wheel orientation
+    global phi1_history phi2_history phi3_history phi4_history; % Declare global variables for wheel orientation history
+
+    % constant for now 
+    step = 20;
+    dt = totalTime / step;
+    dts = (0:(step)) * dt;
+    time_array = dts;
     
-    % Compute wheel angular velocities
-    wheel_angular_velocities = J_inv * [vx; vy; vphi];
-
-    % Update robot pose
-    x_pos = x_pos + (vx * cos(phi) - vy * sin(phi)) * dt;
-    y_pos = y_pos + (vx * sin(phi) + vy * cos(phi)) * dt;
-    phi = phi + vphi * dt;
-
-    % Save wheel angular velocities for plotting
-    v1_history = [v1_history, wheel_angular_velocities(1)];
-    v2_history = [v2_history, wheel_angular_velocities(2)];
-    v3_history = [v3_history, wheel_angular_velocities(3)];
-    v4_history = [v4_history, wheel_angular_velocities(4)];
-    vx_history = [vx_history, vx];
-    vy_history = [vy_history, vy];
-    vphi_history = [vphi_history, vphi];
-
-    % Store history for plotting
-    x_history = [x_history, x_pos];
-    y_history = [y_history, y_pos];
-    phi_history = [phi_history, phi];
-
-    % ===================== Visualization Per Frame ======================
-    % Plot trajectory up to current step
-    plot3(x_history, y_history, zeros(size(x_history)), 'b-', 'LineWidth', 2);
-    hold on;
-
-    % Rotate and translate car model
-    R = [cos(phi), -sin(phi), 0;
-         sin(phi),  cos(phi), 0;
-         0,        0,        1]; % 3D rotation matrix
-
-    draw_car_body(R, x_pos, y_pos); 
-
-    % Draw each wheel
-    draw_wheels(R, x_pos, y_pos);
+    % prepare vCarX, vCary, vCarPhi
+    rad = deg2rad(degree); % s
+    vCarX = distance * cos(rad) / totalTime;
+    vCarY = distance * sin(rad) / totalTime;
+    vCarPhi = rad / totalTime;
     
-    % Formatting
-    xlabel('X Position (m)');
-    ylabel('Y Position (m)');
-    zlabel('Z Position (m)');
-    title('Square Trajectory with Correctly Rotated Wheels');
-    grid on;
-    axis equal;
-    zlim([-0.1 0.5]); % Adjust Z-axis limits
+    fprintf('vx: %d, vy: %d, vphi: %d\n', vCarX, vCarY, vCarPhi);
+    % start at step 1, end at last step
+    for i = 2:length(dts)
+        % Update robot pose
+        dPhi = vCarPhi * dt;
+        phi = phi + dPhi;
+        x_pos = x_pos + (vCarX * cos(phi) - vCarY * sin(phi)) * dt;
+        y_pos = y_pos + (vCarX * sin(phi) + vCarY * cos(phi)) * dt;
+        
+        fprintf('x: %d, y: %d, phi: %d\n', x_pos, y_pos, phi);
+        
+        % Compute wheel angular velocities
+        wheelAngularVelocities = J_inv * [vCarX; vCarY; vCarPhi];
+        phi1_pos = phi1_pos + wheelAngularVelocities(1) * dt;
+        phi2_pos = phi2_pos + wheelAngularVelocities(2) * dt;
+        phi3_pos = phi3_pos + wheelAngularVelocities(3) * dt;
+        phi4_pos = phi4_pos + wheelAngularVelocities(4) * dt;
 
-    % Capture frame and write to video
-    frame = getframe(gcf);
-    writeVideo(video, frame);
+        % Save wheel angular velocities for plotting
+        v1_history = [v1_history, wheelAngularVelocities(1)];
+        v2_history = [v2_history, wheelAngularVelocities(2)];
+        v3_history = [v3_history, wheelAngularVelocities(3)];
+        v4_history = [v4_history, wheelAngularVelocities(4)];
+        vCarX_history = [vCarX_history, vCarX];
+        vCarY_history = [vCarY_history, vCarY];
+        vCarPhi_history = [vCarPhi_history, vCarPhi];
 
-    hold off;
+        % Store history for plotting
+        x_history = [x_history, x_pos];
+        y_history = [y_history, y_pos];
+        phi_history = [phi_history, phi];        
+
+        % wheel angular position
+        phi1_history = [phi1_history, phi1_pos];       
+        phi2_history = [phi2_history, phi2_pos];
+        phi3_history = [phi3_history, phi3_pos];
+        phi4_history = [phi4_history, phi4_pos];
+
+        % ===================== Visualization Per Frame ======================
+        % Plot trajectory up to current step
+        plot3(x_history, y_history, zeros(size(x_history)), 'b-', 'LineWidth', 2);
+        hold on;
+        
+        % disp(x_pos);
+        % disp(y_pos);
+        % disp(phi);
+        % Rotate and translate car model
+        R = [cos(phi), -sin(phi), 0;
+            sin(phi),  cos(phi), 0;
+            0,        0,        1]; % 3D rotation matrix
+
+        draw_car_body(R, x_pos, y_pos); 
+
+        % Draw each wheel
+        draw_wheels(R, x_pos, y_pos);
+        
+        % Formatting
+        xlabel('X Position (m)');
+        ylabel('Y Position (m)');
+        zlabel('Z Position (m)');
+        title('Square Trajectory with Correctly Rotated Wheels');
+        grid on;
+        axis equal;
+        zlim([-0.1 0.5]); % Adjust Z-axis limits
+
+        % Capture frame and write to video
+        frame = getframe(gcf);
+        writeVideo(video, frame);
+
+        hold off;
+    end     
 end
+
+move(10, 360, 10);
 
 % ========================= Finalize Video ============================
 close(video); % Close and save video file
@@ -211,10 +251,42 @@ function plot_velocity(time_array, velocity_data, color, y_label_text, title_tex
     grid on;
 end
 
-plot_velocity(time_array, v1_history, 'r-', 'Angular Velocity (rad/s)', 'Wheel 1 Angular Velocity');
-plot_velocity(time_array, v2_history, 'g-', 'Angular Velocity (rad/s)', 'Wheel 2 Angular Velocity');
-plot_velocity(time_array, v3_history, 'b-', 'Angular Velocity (rad/s)', 'Wheel 3 Angular Velocity');
-plot_velocity(time_array, v4_history, 'k-', 'Angular Velocity (rad/s)', 'Wheel 4 Angular Velocity');
+function plot_velocities(time_array, velocities, colors, yLabel, titleLabel, legends)
+    figure;
+    hold on;
+    for i = 1:length(velocities)
+        % disp(i); 
+        % disp(velocities{i});
+        % disp(colors(i));
+        % disp(legends(i));
+        plot(time_array, velocities{i}, colors(i), 'LineWidth', 1.5, 'DisplayName', legends(i));
+    end
+    hold off;
+    grid on;
+    xlabel('Time (s)');
+    ylabel(yLabel);
+    title(titleLabel);
+    legend('show');
+end
+
+% plot_velocity(time_array, v1_history, 'r-', 'Angular Velocity (rad/s)', 'Wheel 1 Angular Velocity');
+% plot_velocity(time_array, v2_history, 'g-', 'Angular Velocity (rad/s)', 'Wheel 2 Angular Velocity');
+% plot_velocity(time_array, v3_history, 'b-', 'Angular Velocity (rad/s)', 'Wheel 3 Angular Velocity');
+% plot_velocity(time_array, v4_history, 'k-', 'Angular Velocity (rad/s)', 'Wheel 4 Angular Velocity');
+plot_velocities(time_array, {v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+
+% convert wheel angular position to degree
+% phi1_history = rad2deg(phi1_history);
+% phi2_history = rad2deg(phi2_history);
+% phi3_history = rad2deg(phi3_history);
+% phi4_history = rad2deg(phi4_history);
+
+% TODO: divide y-axis by pi
+
+% plot_velocity(time_array, phi1_history, 'r-', 'Angular Position (rad)', 'Wheel 1 Angular Position');
+% plot_velocity(time_array, phi2_history, 'g-', 'Angular Position (rad)', 'Wheel 2 Angular Position');
+% plot_velocity(time_array, phi3_history, 'b-', 'Angular Position (rad)', 'Wheel 3 Angular Position');
+% plot_velocity(time_array, phi4_history, 'k-', 'Angular Position (rad)', 'Wheel 4 Angular Position');
 
 % % Combined wheel angular velocities
 % figure;
