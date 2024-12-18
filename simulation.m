@@ -9,12 +9,14 @@ global x_history y_history phi_history; % Declare global variables for position 
 global phi1_history phi2_history phi3_history phi4_history; % Declare global variables for wheel orientation history
 global phi1_pos phi2_pos phi3_pos phi4_pos; % Declare global variables for wheel orientation
 global timePerOp stepPerOp;
+global wheelR;
 
 
 % ========================== Inverse Kinematics ==========================
 % Robot parameters
 l = 0.5; % Distance between wheel pairs (m)
 d = 0.5; % Distance between wheels along the axis (m)
+wheelR = 0.097; 
 
 % Inverse kinematics matrix 
 J_inv = [1, -1, -(l + d);
@@ -150,10 +152,12 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
     global video; % Declare global variable for video writer
     global phi1_pos phi2_pos phi3_pos phi4_pos; % Declare global variables for wheel orientation
     global phi1_history phi2_history phi3_history phi4_history; % Declare global variables for wheel orientation history
+    global wheelR;
 
     % constant for now 
     % step = 20;
     dt = totalTime / step;
+    disp(dt);
     time_array = (0:(step)) * dt;
     time_history = [time_history, time_array(2:end) + time_history(end)]; % Append time array to history
     % time_array = dts;
@@ -178,7 +182,7 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
         fprintf('x: %d, y: %d, phi: %d\n', x_pos, y_pos, phi);
         
         % Compute wheel angular velocities
-        wheelAngularVelocities = J_inv * [vCarX; vCarY; vCarPhi];
+        wheelAngularVelocities = J_inv * [vCarX; vCarY; vCarPhi] / wheelR;
         phi1_pos = phi1_pos + wheelAngularVelocities(1) * dt;
         phi2_pos = phi2_pos + wheelAngularVelocities(2) * dt;
         phi3_pos = phi3_pos + wheelAngularVelocities(3) * dt;
@@ -283,7 +287,7 @@ function circle_no_turn(radius, unitDeg)
     % as the loop is big, each operation taking 1 step is fine
     for i = 1:unitDeg:deg
         % fprintf('> i: %d\n', i);
-        move(arcSmallest, i , 0, timePerOp, 1);
+        move(arcSmallest, i , 0, 20 / (360 / unitDeg), 1);
     end
 end
 
@@ -299,9 +303,11 @@ end
 
 % square_with_turn(5);
 % square_no_turn(5) 
-circle_with_turn(5, 30);
+
+% circle_with_turn(5, 75);
+circle_center_turn(5, 40);
+
 % circle_no_turn(5, 2)
-% circle_center_turn(5, 40);
 
 % ========================= Finalize Video ============================
 close(video); % Close and save video file
@@ -349,5 +355,11 @@ plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "
 % plot_velocity(time_array, phi2_history, 'g-', 'Angular Position (rad)', 'Wheel 2 Angular Position');
 % plot_velocity(time_array, phi3_history, 'b-', 'Angular Position (rad)', 'Wheel 3 Angular Position');
 % plot_velocity(time_array, phi4_history, 'k-', 'Angular Position (rad)', 'Wheel 4 Angular Position');
-plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (rad)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+
+phi1_history = phi1_history / (2 * pi);
+phi2_history = phi2_history / (2 * pi);
+phi3_history = phi3_history / (2 * pi);
+phi4_history = phi4_history / (2 * pi);
+
+plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (cycle)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
