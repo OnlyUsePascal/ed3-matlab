@@ -169,6 +169,7 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
 
     rotateAngle = deg2rad(rotateAngle); % s
     vCarPhi = rotateAngle / totalTime;
+    wheelAngularVelocities = J_inv * [vCarX; vCarY; vCarPhi] / wheelR;
     
     fprintf('vx: %d, vy: %d, vphi: %d\n', vCarX, vCarY, vCarPhi);
     % start at step 1, end at last step
@@ -182,7 +183,6 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
         fprintf('x: %d, y: %d, phi: %d\n', x_pos, y_pos, phi);
         
         % Compute wheel angular velocities
-        wheelAngularVelocities = J_inv * [vCarX; vCarY; vCarPhi] / wheelR;
         phi1_pos = phi1_pos + wheelAngularVelocities(1) * dt;
         phi2_pos = phi2_pos + wheelAngularVelocities(2) * dt;
         phi3_pos = phi3_pos + wheelAngularVelocities(3) * dt;
@@ -243,75 +243,6 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
     end     
 end
 
-timePerOp = 10;
-stepPerOp = 10;
-
-% square no turn
-function square_with_turn(distance) 
-    global timePerOp stepPerOp;
-
-    for i = 1:4
-        % Move straight
-        move(distance, 0, 0, timePerOp, stepPerOp);
-
-        % Turn 90°
-        move(0, 0, 90, timePerOp, stepPerOp);
-    end
-end
-
-function square_no_turn(distance)
-    global timePerOp stepPerOp;
-
-    for i = 1:4
-        % Move straight at angle i-1 * 90
-        move(distance, 90 * (i-1), 0, timePerOp, stepPerOp);
-    end
-end
-
-function circle_with_turn(radius, stepPerOp)
-    global timePerOp;
-
-    % idea: move straight + rotate 
-    % the bigger stepPerOp, the smoother the circle
-    move(2 * pi * radius, 0, 360, timePerOp, stepPerOp); 
-end
-
-function circle_no_turn(radius, unitDeg)
-    global timePerOp;
-    
-    % idea: an arc is a chain of straight lines
-    % so we should conduct a series of small straight moves with different direction
-    deg = 360;
-    arcSmallest = radius * degtorad(unitDeg)
-
-    % as the loop is big, each operation taking 1 step is fine
-    for i = 1:unitDeg:deg
-        % fprintf('> i: %d\n', i);
-        move(arcSmallest, i , 0, 20 / (360 / unitDeg), 1);
-    end
-end
-
-function circle_center_turn(radius, stepPerOp)
-    global timePerOp;
-
-    % step 1: rotate left / right
-    move(0, 0, -90, timePerOp, 10)
-
-    % step 2: move horizontally + rotate bit by bit
-    move(radius * 2 * pi , 90, 360, 10, stepPerOp); % 5m circle 180 degree turn
-end
-
-% square_with_turn(5);
-% square_no_turn(5) 
-
-% circle_with_turn(5, 75);
-circle_center_turn(5, 40);
-
-% circle_no_turn(5, 2)
-
-% ========================= Finalize Video ============================
-close(video); % Close and save video file
-
 % ========================= Velocity Graphs ============================
 function plot_velocity(velocity_data, color, y_label_text, title_text)
     global time_history;
@@ -344,11 +275,29 @@ function plot_velocities(velocities, colors, yLabel, titleLabel, legends)
     legend('show');
 end
 
+function start_plot()
+    % global time_history;    
+    % global v1_history v2_history v3_history v4_history ;
+    % global phi1_history phi2_history phi3_history phi4_history;
+    % global x_history y_history phi_history;
+    
+    % phi1_history = phi1_history / (2 * pi);
+    % phi2_history = phi2_history / (2 * pi);
+    % phi3_history = phi3_history / (2 * pi);
+    % phi4_history = phi4_history / (2 * pi);
+    
+    % plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+    % plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (cycle)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+
+    % csvwrite('car_pos.csv',[x_history; y_history; phi_history]);
+    % csvwrite('wheel_pos.csv',[phi1_history; phi2_history; phi3_history; phi4_history]);
+end
+
+
 % plot_velocity(time_array, v1_history, 'r-', 'Angular Velocity (rad/s)', 'Wheel 1 Angular Velocity');
 % plot_velocity(time_array, v2_history, 'g-', 'Angular Velocity (rad/s)', 'Wheel 2 Angular Velocity');
 % plot_velocity(time_array, v3_history, 'b-', 'Angular Velocity (rad/s)', 'Wheel 3 Angular Velocity');
 % plot_velocity(time_array, v4_history, 'k-', 'Angular Velocity (rad/s)', 'Wheel 4 Angular Velocity');
-plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
 % TODO: divide y-axis by pi
 % plot_velocity(time_array, phi1_history, 'r-', 'Angular Position (rad)', 'Wheel 1 Angular Position');
@@ -356,10 +305,79 @@ plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "
 % plot_velocity(time_array, phi3_history, 'b-', 'Angular Position (rad)', 'Wheel 3 Angular Position');
 % plot_velocity(time_array, phi4_history, 'k-', 'Angular Position (rad)', 'Wheel 4 Angular Position');
 
-phi1_history = phi1_history / (2 * pi);
-phi2_history = phi2_history / (2 * pi);
-phi3_history = phi3_history / (2 * pi);
-phi4_history = phi4_history / (2 * pi);
 
-plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (cycle)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
+
+% ========================= Path Planning ============================
+% square no turn
+function square_with_turn(distance, timePerOp, stepPerOp) 
+    % global timePerOp stepPerOp;
+
+    for i = 1:4
+        % Move straight
+        move(distance, 0, 0, timePerOp, stepPerOp);
+
+        % Turn 90°
+        move(0, 0, 90, timePerOp, stepPerOp);
+    end
+end
+
+function square_no_turn(distance, timePerOp, stepPerOp)
+    % global timePerOp stepPerOp;
+
+    for i = 1:4
+        % Move straight at angle i-1 * 90
+        move(distance, 90 * (i-1), 0, timePerOp, stepPerOp);
+    end
+end
+
+function circle_with_turn(radius, timePerOp, stepPerOp)
+    % global timePerOp;
+
+    % idea: move straight + rotate 
+    % the bigger stepPerOp, the smoother the circle
+    move(2 * pi * radius, 0, 360, timePerOp, stepPerOp); 
+end
+
+function circle_center_turn(radius, timePerOp, stepPerOp)
+    % global timePerOp;
+
+    % step 1: rotate left / right
+    move(0, 0, -90, timePerOp, 10)
+
+    % step 2: move horizontally + rotate bit by bit
+    move(radius * 2 * pi , 90, 360, timePerOp, stepPerOp); % 5m circle 180 degree turn
+end
+
+function circle_no_turn(radius, timePerOp, stepPerOp)
+    % global timePerOp;
+    
+    % idea: an arc is a chain of straight lines
+    % so we should conduct a series of small straight moves with different direction
+    totalDeg = 360;
+    unitDeg = totalDeg / stepPerOp;
+    unitArc = radius * degtorad(unitDeg);
+
+    % as the loop is big, each operation taking 1 step is fine
+    for angle = 1:unitDeg:totalDeg
+        % fprintf('> i: %d\n', i);
+        move(unitArc, angle , 0, timePerOp / stepPerOp, 1);
+    end
+end
+
+
+
+% timePerOp = 10;
+% stepPerOp = 10;
+
+square_with_turn(5, 1, 10);
+% square_no_turn(5, 1, 10);  
+
+% circle_with_turn(5, 10, 100);
+% circle_center_turn(5, 10, 100);
+
+% circle_no_turn(5, 10, 100)
+start_plot();
+
+% ========================= Finalize Video ============================
+close(video); % Close and save video file
