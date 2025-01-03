@@ -157,7 +157,8 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
     % constant for now 
     % step = 20;
     dt = totalTime / step;
-    disp(dt);
+    % disp(dt);
+    fprintf('dt: %d, step: %d\n', dt, step);
     time_array = (0:(step)) * dt;
     time_history = [time_history, time_array(2:end) + time_history(end)]; % Append time array to history
     % time_array = dts;
@@ -183,7 +184,7 @@ function move(distance, moveAngle, rotateAngle, totalTime, step)
         fprintf('x: %d, y: %d, phi: %d\n', x_pos, y_pos, phi);
         
         % Compute wheel angular velocities
-        phi1_pos = phi1_pos + wheelAngularVelocities(1) * dt;
+        phi1_pos = phi1_pos + wheelAngularVelocities(1) * dt; 
         phi2_pos = phi2_pos + wheelAngularVelocities(2) * dt;
         phi3_pos = phi3_pos + wheelAngularVelocities(3) * dt;
         phi4_pos = phi4_pos + wheelAngularVelocities(4) * dt;
@@ -276,21 +277,25 @@ function plot_velocities(velocities, colors, yLabel, titleLabel, legends)
 end
 
 function start_plot()
-    % global time_history;    
-    % global v1_history v2_history v3_history v4_history ;
-    % global phi1_history phi2_history phi3_history phi4_history;
-    % global x_history y_history phi_history;
+    global time_history;    
+    global v1_history v2_history v3_history v4_history ;
+    global phi1_history phi2_history phi3_history phi4_history;
+    global x_history y_history phi_history;
+    global vCarX_history vCarY_history vCarPhi_history;
     
-    % phi1_history = phi1_history / (2 * pi);
-    % phi2_history = phi2_history / (2 * pi);
-    % phi3_history = phi3_history / (2 * pi);
-    % phi4_history = phi4_history / (2 * pi);
+    phi1_history = phi1_history / (2 * pi);
+    phi2_history = phi2_history / (2 * pi);
+    phi3_history = phi3_history / (2 * pi);
+    phi4_history = phi4_history / (2 * pi);
     
-    % plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
-    % plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (cycle)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+    plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
+    plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (cycle)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
 
-    % csvwrite('car_pos.csv',[x_history; y_history; phi_history]);
-    % csvwrite('wheel_pos.csv',[phi1_history; phi2_history; phi3_history; phi4_history]);
+    csvwrite('car_vel.csv',[vCarX_history; vCarY_history; vCarPhi_history]);
+    csvwrite('car_pos.csv',[x_history; y_history; phi_history]);
+    
+    csvwrite('wheel_vel.csv',[v1_history; v2_history; v3_history; v4_history]);
+    csvwrite('wheel_pos.csv',[phi1_history; phi2_history; phi3_history; phi4_history]);
 end
 
 
@@ -370,7 +375,7 @@ end
 % timePerOp = 10;
 % stepPerOp = 10;
 
-square_with_turn(5, 1, 10);
+square_with_turn(5, 1, 4);
 % square_no_turn(5, 1, 10);  
 
 % circle_with_turn(5, 10, 100);
