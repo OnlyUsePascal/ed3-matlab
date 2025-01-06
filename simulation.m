@@ -14,16 +14,20 @@ global wheelR;
 
 % ========================== Inverse Kinematics ==========================
 % Robot parameters
-l = 0.5; % Distance between wheel pairs (m)
-d = 0.5; % Distance between wheels along the axis (m)
-wheelR = 0.097; 
+l = 0.25; % Distance between wheel pairs (m)
+d = 0.25; % Distance between wheels along the axis (m)
+wheelR = 0.05; 
 
 % Inverse kinematics matrix 
-J_inv = [1, -1, -(l + d);
-         1,  1, -(l + d);
-         1, -1,  (l + d);
-         1,  1,  (l + d)];
+% J_inv = [1, -1, -(l + d);
+        %  1,  1, -(l + d);
+        %  1, -1,  (l + d);
+        %  1,  1,  (l + d)];
 
+J_inv = [1, -1, -(l + d);
+         1, 1, (l + d);
+         1, 1, -(l + d);
+         1, -1,  (l + d)];
 % ========================== Simulation Setup ============================
 % Time parameters
 % dt = 0.1; % Time step (s)
@@ -283,10 +287,10 @@ function start_plot()
     global x_history y_history phi_history;
     global vCarX_history vCarY_history vCarPhi_history;
     
-    phi1_history = phi1_history / (2 * pi);
-    phi2_history = phi2_history / (2 * pi);
-    phi3_history = phi3_history / (2 * pi);
-    phi4_history = phi4_history / (2 * pi);
+    % phi1_history = phi1_history / (2 * pi);
+    % phi2_history = phi2_history / (2 * pi);
+    % phi3_history = phi3_history / (2 * pi);
+    % phi4_history = phi4_history / (2 * pi);
     
     plot_velocities({v1_history; v2_history; v3_history; v4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Velocity (rad/s)", "Wheel Angular Velocities", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
     plot_velocities({phi1_history; phi2_history; phi3_history; phi4_history}, ["r-"; "g-"; "b-"; "k-"], "Angular Position (cycle)", "Wheel Angular Positions", ["Wheel 1"; "Wheel 2"; "Wheel 3"; "Wheel 4"]);
@@ -323,7 +327,7 @@ function square_with_turn(distance, timePerOp, stepPerOp)
         move(distance, 0, 0, timePerOp, stepPerOp);
 
         % Turn 90°
-        move(0, 0, 90, timePerOp, stepPerOp);
+        % move(0, 0, 90, timePerOp, stepPerOp);
     end
 end
 
